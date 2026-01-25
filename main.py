@@ -14,6 +14,7 @@ import Dojebal
 import MorningBot
 import GitBot
 import ChatPrumka
+import TaskBot  # <--- NOVÝ IMPORT
 
 # --- LOGOVÁNÍ ---
 logging.basicConfig(
@@ -29,9 +30,11 @@ intents.message_content = True
 intents.reactions = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Gemini Setup - OPRAVENÝ MODEL (1.5-flash je stabilní verze)
+# Gemini Setup
 genai.configure(api_key=Config.GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash-lite')
+# Poznámka: Pokud model 'gemini-2.5-flash-lite' neexistuje/je private,
+# vrať se k 'gemini-1.5-flash' nebo 'gemini-pro'.
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Slovník pro sledování více repozitářů
 last_commits = {}
@@ -99,6 +102,40 @@ async def test_morning(interaction: discord.Interaction):
     await MorningBot.send_morning_message(interaction=interaction)
 
 
+# --- NOVÉ COMMANDY PRO TASKBOT ---
+
+@bot.tree.command(name="to-do", description="Přidat úkol do seznamu")
+async def todo_add_cmd(interaction: discord.Interaction, co_udelat: str):
+    await interaction.response.defer()
+    try:
+        # Přidání úkolu
+        author = interaction.user.display_name
+        TaskBot.add_task(co_udelat, author)
+
+        # Zobrazení aktualizovaného listu
+        embed = TaskBot.create_todo_embed()
+        await interaction.followup.send(content=f"Úkol přidán!", embed=embed)
+    except Exception as e:
+        logger.error(f"Chyba v todo_add_cmd: {e}")
+        await interaction.followup.send("Něco se pokazilo při ukládání úkolu.")
+
+
+@bot.tree.command(name="vybavene", description="Označit úkol jako hotový (podle ID)")
+async def todo_done_cmd(interaction: discord.Interaction, id_ukolu: int):
+    await interaction.response.defer()
+    try:
+        success = TaskBot.complete_task(id_ukolu)
+
+        embed = TaskBot.create_todo_embed()
+        if success:
+            await interaction.followup.send(content=f"Úkol #{id_ukolu} byl splněn a odstraněn!", embed=embed)
+        else:
+            await interaction.followup.send(content=f"Úkol s ID #{id_ukolu} nebyl nalezen.", embed=embed)
+    except Exception as e:
+        logger.error(f"Chyba v todo_done_cmd: {e}")
+        await interaction.followup.send("Chyba při mazání úkolu.")
+
+
 # ---------------------------------------------------------
 # TASKS
 # ---------------------------------------------------------
@@ -121,11 +158,18 @@ async def github_loop():
     channel = bot.get_channel(Config.GITHUB_CHANNEL_ID)
     if not channel: return
 
-    repos = [r.strip() for r in Config.GITHUB_REPO.split(",")]
+    try:
+        repos = [r.strip() for r in Config.GITHUB_REPO.split(",")]
+    except AttributeError:
+        # Fallback kdyby GITHUB_REPO nebylo v configu stringem nebo chybělo
+        return
 
     for repo in repos:
         commits = GitBot.get_github_commits(repo)
         if not commits: continue
+
+        # Ošetření, kdyby API vrátilo divnou strukturu
+        if 'sha' not in commits[0]: continue
 
         new_sha = commits[0]['sha']
 
@@ -136,10 +180,15 @@ async def github_loop():
         if new_sha != last_commits[repo]:
             c = commits[0]
             repo_short = repo.split("/")[-1]
+
+            author_name = c['commit']['author']['name']
+            message = c['commit']['message']
+            url = c['html_url']
+
             embed = discord.Embed(
                 title=f"Nový commit: {repo_short}",
-                description=f"**{c['commit']['author']['name']}**: {c['commit']['message']}",
-                url=c['html_url'],
+                description=f"**{author_name}**: {message}",
+                url=url,
                 color=0x2b2d31
             )
             embed.set_footer(text=f"Repo: {repo} | SHA: {new_sha[:7]}")
@@ -168,7 +217,8 @@ async def on_message(message):
                 await message.channel.send(response.text[:2000])
             except Exception as e:
                 logger.error(f"Gemini error: {e}")
-                await message.channel.send("Můj digitální mozek právě dostal modrou smrt.")
+                # Fallback zpráva, aby uživatel věděl, že se něco děje
+                await message.channel.send("Můj digitální mozek má výpadek (API Error).")
 
 
 @bot.event
@@ -182,12 +232,13 @@ async def on_ready():
         logger.error(f"Sync error: {e}")
 
     # Inicializace SHA pro všechna sledovaná repa
-    repos = [r.strip() for r in Config.GITHUB_REPO.split(",")]
-    for r in repos:
-        c = GitBot.get_github_commits(r)
-        if c:
-            last_commits[r] = c[0]['sha']
-            logger.info(f"Sleduji repo: {r} (SHA: {last_commits[r][:7]})")
+    if Config.GITHUB_REPO:
+        repos = [r.strip() for r in Config.GITHUB_REPO.split(",")]
+        for r in repos:
+            c = GitBot.get_github_commits(r)
+            if c and 'sha' in c[0]:
+                last_commits[r] = c[0]['sha']
+                logger.info(f"Sleduji repo: {r} (SHA: {last_commits[r][:7]})")
 
     # Start smyček (pouze pokud ještě neběží)
     if not github_loop.is_running():
@@ -197,4 +248,5 @@ async def on_ready():
 
 
 # --- RUN ---
-bot.run(Config.DISCORD_TOKEN)
+if __name__ == "__main__":
+    bot.run(Config.DISCORD_TOKEN)
