@@ -103,7 +103,7 @@ async def test_morning(interaction: discord.Interaction):
 # TASKS
 # ---------------------------------------------------------
 
-@tasks.loop(time=datetime.time(hour=7, minute=0))
+@tasks.loop(time=datetime.time(hour=8, minute=0))
 async def daily_routine():
     m_channel = bot.get_channel(Config.MORNING_CHANNEL_ID)
     if m_channel:
