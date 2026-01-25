@@ -147,7 +147,7 @@ async def todo_add_cmd(interaction: discord.Interaction, co_udelat: str):
         # Aktualizujeme statický embed
         await refresh_todo_list(bot)
 
-        await interaction.followup.send(content=f"✅ Úkol přidán.")
+        await interaction.followup.send(content=f"Úkol přidán.")
     except Exception as e:
         logger.error(f"Chyba v todo_add_cmd: {e}")
         await interaction.followup.send("Chyba při ukládání úkolu.")
@@ -162,9 +162,9 @@ async def todo_done_cmd(interaction: discord.Interaction, id_ukolu: int):
         if success:
             # Aktualizujeme statický embed
             await refresh_todo_list(bot)
-            await interaction.followup.send(content=f"🗑️ Úkol #{id_ukolu} hotov a smazán.")
+            await interaction.followup.send(content=f"Úkol #{id_ukolu} hotov a smazán.")
         else:
-            await interaction.followup.send(content=f"⚠️ Úkol s ID #{id_ukolu} neexistuje.")
+            await interaction.followup.send(content=f"Úkol s ID #{id_ukolu} neexistuje.")
     except Exception as e:
         logger.error(f"Chyba v todo_done_cmd: {e}")
         await interaction.followup.send("Chyba.")
