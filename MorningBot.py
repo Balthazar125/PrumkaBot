@@ -52,13 +52,18 @@ async def send_morning_message(interaction=None, channel=None):
             if os.path.exists(clean_path):
                 kwargs["file"] = discord.File(clean_path)
 
+    # Uprav konec funkce send_morning_message v MorningBot.py
     try:
         if interaction:
-            # Pokud voláme z interakce (Slash Command), musíme použít followup,
-            # protože v main.py děláme defer()
-            await interaction.followup.send(**kwargs)
+            # První zpráva: Text + GIF
+            await interaction.followup.send(content=text)
+            # Druhá zpráva: Jen novinky (pokud jsou)
+            if news_embed:
+                await interaction.followup.send(embed=news_embed)
         elif channel:
-            # Pokud voláme z task loopu (automaticky ráno)
-            await channel.send(**kwargs)
+            await channel.send(content=text)
+            if news_embed:
+                await channel.send(embed=news_embed)
+
     except Exception as e:
         print(f"Chyba při odesílání: {e}")
