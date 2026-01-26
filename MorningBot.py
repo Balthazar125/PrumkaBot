@@ -38,32 +38,38 @@ async def send_morning_message(interaction=None, channel=None):
     text, media_path = get_random_data()
     news_embed = get_news_embed()
 
-    # Příprava argumentů
-    kwargs = {"content": text}
-    if news_embed:
-        kwargs["embed"] = news_embed
+    # Určíme cílový kanál, kam budeme posílat
+    # Pokud je to z interakce, vezmeme kanál z ní, jinak použijeme předaný objekt channel
+    target = interaction.channel if interaction else channel
 
-    # Zpracování souboru/média
+    if not target:
+        print("Chyba: Nebyl nalezen cílový kanál.")
+        return
+
+    # --- 1. ZPRÁVA: Text + Médium (Soubor nebo GIF link) ---
+    first_msg_kwargs = {"content": text}
+
     if media_path:
         if media_path.startswith("http"):
-            kwargs["content"] += f"\n{media_path}"
+            # Přidáme link na GIF přímo do textu
+            first_msg_kwargs["content"] += f"\n{media_path}"
         else:
+            # Připravíme lokální soubor z cesty v JSONu
             clean_path = media_path.lstrip("/").lstrip("\\")
             if os.path.exists(clean_path):
-                kwargs["file"] = discord.File(clean_path)
+                first_msg_kwargs["file"] = discord.File(clean_path)
 
-    # Uprav konec funkce send_morning_message v MorningBot.py
     try:
-        if interaction:
-            # První zpráva: Text + GIF
-            await interaction.followup.send(content=text)
-            # Druhá zpráva: Jen novinky (pokud jsou)
-            if news_embed:
-                await interaction.followup.send(embed=news_embed)
-        elif channel:
-            await channel.send(content=text)
-            if news_embed:
-                await channel.send(embed=news_embed)
+        # Odešleme první část
+        await target.send(**first_msg_kwargs)
+
+        # --- 2. ZPRÁVA: Pouze novinky ---
+        if news_embed:
+            # Posíláme jako úplně novou zprávu bez textu
+            await target.send(embed=news_embed)
+
+    except Exception as e:
+        print(f"Chyba při odesílání: {e}")
 
     except Exception as e:
         print(f"Chyba při odesílání: {e}")
