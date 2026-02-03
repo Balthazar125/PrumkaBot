@@ -15,3 +15,4 @@ class Config:
     GITHUB_CHANNEL_ID = int(os.getenv("GITHUB_CHANNEL_ID", 0))
     MORNING_CHANNEL_ID = int(os.getenv("MORNING_CHANNEL_ID", 0))
     TODO_CHANNEL_ID = int(os.getenv("TODO_CHANNEL_ID", 0))
+    MONSTER_CHANNEL_ID = int(os.getenv("MONSTER_CHANNEL_ID", 0))

@@ -15,6 +15,7 @@ import MorningBot
 import GitBot
 import ChatPrumka
 import TaskBot
+import MonsterCheck  # <--- NOVÝ IMPORT
 
 # --- LOGOVÁNÍ ---
 logging.basicConfig(
@@ -217,6 +218,15 @@ async def github_loop():
             await channel.send(embed=embed)
             last_commits[repo] = new_sha
 
+# --- NOVÁ SMYČKA PRO MONSTER CHECK (každé 4 hodiny) ---
+@tasks.loop(hours=4)
+async def monster_loop():
+    # Pro jistotu jen logneme, že kontrola běží
+    logger.info("Spouštím kontrolu slev (MonsterCheck)...")
+    try:
+        await MonsterCheck.check_discounts(bot)
+    except Exception as e:
+        logger.error(f"Chyba v MonsterCheck loopu: {e}")
 
 # ---------------------------------------------------------
 # EVENTS
@@ -266,6 +276,8 @@ async def on_ready():
         github_loop.start()
     if not daily_routine.is_running():
         daily_routine.start()
+    if not monster_loop.is_running():
+        monster_loop.start()
 
 
 # --- RUN ---
