@@ -15,7 +15,7 @@ import MorningBot
 import GitBot
 import ChatPrumka
 import TaskBot
-import MonsterCheck  # <--- NOVÝ IMPORT
+import MonsterCheck
 
 # --- LOGOVÁNÍ ---
 logging.basicConfig(
@@ -268,7 +268,7 @@ async def on_ready():
             if c and 'sha' in c[0]:
                 last_commits[r] = c[0]['sha']
 
-    # Obnovení To-Do Listu po restartu (zajistí, že embed tam je)
+
     await refresh_todo_list(bot)
 
     # Start smyček

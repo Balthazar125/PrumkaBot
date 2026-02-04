@@ -2,7 +2,7 @@
 import os
 from dotenv import load_dotenv
 
-# Načte proměnné ze souboru .env
+# Načte proměnné ze souboru
 load_dotenv()
 
 
